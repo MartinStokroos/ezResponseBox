@@ -167,8 +167,10 @@ static void send_hid_report(uint8_t report_id, uint32_t btn)
 
       hid_gamepad_report_t report =
       {
-        .x   = 0, .y = 0, .z = 0, .rz = 0, .rx = 0, .ry = 0,
-        .hat = 0, .buttons = 0
+        .x   = 0, .y = 0, .z = 0,
+        .rz = 0, .rx = 0, .ry = 0,
+        .hat = 0, 
+        .buttons = 0
       };
 
       if ( btn )
@@ -192,12 +194,12 @@ static void send_hid_report(uint8_t report_id, uint32_t btn)
   }
 }
 
-// Every 10ms, we will sent 1 report for each HID profile (keyboard, mouse etc ..)
+// Every 1ms, we will sent 1 report for each HID profile (keyboard, mouse etc ..)
 // tud_hid_report_complete_cb() is used to send the next report after previous one is complete
 void hid_task(void)
 {
-  // Poll every 10ms
-  const uint32_t interval_ms = 10;
+  // Poll every 1ms
+  const uint32_t interval_ms = 1;
   static uint32_t start_ms = 0;
 
   if ( board_millis() - start_ms < interval_ms) return; // not enough time
