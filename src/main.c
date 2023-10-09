@@ -26,11 +26,16 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include "hardware/gpio.h"
 #include "pico/util/queue.h"
 
 #include "bsp/board.h"
 #include "tusb.h"
 #include "usb_descriptors.h"
+
+#define FIRST_GPIO_IN 0
+#define FIRST_GPIO_OUT (FIRST_GPIO_IN + 8)
+#define RANGE_GPIO 0xFFFF
 
 //--------------------------------------------------------------------+
 // MACRO CONSTANT TYPEDEF PROTYPES
@@ -41,42 +46,94 @@
  * - 1000 ms : device mounted
  * - 2500 ms : device is suspended
  */
-enum  {
+enum {
   BLINK_NOT_MOUNTED = 250,
   BLINK_MOUNTED = 1000,
   BLINK_SUSPENDED = 2500,
 };
 
-static uint32_t blink_interval_ms = BLINK_NOT_MOUNTED;
+// prototypes
 void led_blinking_task(void);
-
 bool timer_callback(repeating_timer_t *rt);
-// using struct as an example, but primitive types can be used too
-static int v = 0;
 
-
+// globals
+static uint32_t blink_interval_ms = BLINK_NOT_MOUNTED;
+static uint8_t lastEvent;
+static bool eventAvailable;
+static uint8_t dataIn[8] = {0, 0, 0, 0, 0, 0, 0, 0}; //input sample buffer
+static uint8_t window[8] = {0, 0, 0, 0, 0, 0, 0, 0}; //filter window
+static uint8_t newEvent=0;
+static const uint8_t filtered[32]=
+{
+  0, //00000
+  0, //00001
+  0, //00010
+  1, //00011
+  0, //00100
+  1, //00101
+  1, //00110
+  1, //00111
+  0, //01000
+  1, //01001
+  1, //01010
+  1, //01011
+  1, //01100
+  1, //01101
+  1, //01110
+  1, //01111
+  0, //10000
+  0, //10001
+  0, //10010
+  1, //10011
+  0, //10100
+  1, //10101
+  1, //10110
+  1, //10111
+  0, //11000
+  1, //11001
+  1, //11010
+  1, //11011
+  1, //11100
+  1, //11101
+  1, //11110
+  1	 //11111
+};
 
 
 /*------------- MAIN -------------*/
 int main(void)
 {
-  hid_gamepad_report_t report =
-      {
-        .x   = 0, .y = 0, .z = 0,
-        .rz = 0, .rx = 0, .ry = 0,
-        .hat = 0, 
-        .buttons = 0
-      };
+  for (int gpio = FIRST_GPIO_IN; gpio < FIRST_GPIO_IN + 8; gpio++)
+  {
+    gpio_init(gpio);
+    gpio_set_dir(gpio, GPIO_IN);
+    gpio_pull_up(gpio);
+  }
+
+  for (int gpio = FIRST_GPIO_OUT; gpio < FIRST_GPIO_OUT + 8; gpio++)
+  {
+    gpio_init(gpio);
+    gpio_set_dir(gpio, GPIO_OUT);
+    //gpio_set_outover(gpio, GPIO_OVERRIDE_INVERT);
+  }
 
   repeating_timer_t timer;
-  // negative timeout means exact delay (rather than delay between callbacks)
-  if (!add_repeating_timer_us(-1000000, timer_callback, NULL, &timer)) {
+  // negative timeout means exact delay in us (rather than delay between callbacks)
+  if (!add_repeating_timer_us(-100, timer_callback, NULL, &timer)) {
     //printf("Failed to add timer\n");
     return 1;
   }
 
   board_init();
   tusb_init();
+
+  hid_gamepad_report_t report =
+  {
+    .x   = 0, .y = 0, .z = 0,
+    .rz = 0, .rx = 0, .ry = 0,
+    .hat = 0, 
+    .buttons = 0
+  };
 
   while (1)
   {
@@ -89,13 +146,14 @@ int main(void)
       // Wake up host if we are in suspend mode
       // and REMOTE_WAKEUP feature is enabled by host
       tud_remote_wakeup();
-    } else
+    }else
     {
       // skip if hid is not ready yet
-      if ( tud_hid_ready() && (v > report.buttons) )
+      if ( tud_hid_ready() && eventAvailable )
       {
-        report.buttons = v;
+        report.buttons = lastEvent;
         tud_hid_report(REPORT_ID_GAMEPAD, &report, sizeof(report));
+        eventAvailable = false;
       }
     }
   }
@@ -224,6 +282,33 @@ void led_blinking_task(void)
 // HARDWARE TIMER
 //--------------------------------------------------------------------+
 bool timer_callback(repeating_timer_t *rt) {
-  v += 1;
+
+  for(int k = 0; k < FIRST_GPIO_IN+8; k++)
+  {
+    dataIn[k] += !gpio_get(FIRST_GPIO_IN + k); // read and invert digital event inputs and put in lsb.
+  }
+
+  // Debounce filter according Steven Pigeon, taken from:
+  // https://hbfs.wordpress.com/2008/08/20/debouncing-using-binary-finite-impulse-reponse-filter/
+  // window size = 5 bits. Filter delay is two sample periods.
+  newEvent = 0;
+  for(int k = 7; k >= 0; k--)
+  {
+	  newEvent <<= 1; //left shift for the next channel in the event byte
+	  window[k] = ( (window[k] << 1) | (dataIn[k] & 1) ) & 0x1f; //calculate the 5 bit window
+	  newEvent += filtered[window[k]]; //decide for the new event to be a one or a zero
+	  dataIn[k] <<= 1; //left shift the channel input streams for the next sample take
+  }
+
+  // detect on changes and put a flag
+  if(newEvent ^ lastEvent)
+  {
+	  lastEvent = newEvent;
+	  eventAvailable = true;
+  }
+
+  //Forward debounced to outputs. Set all GPIOs in one go. To do: MUST BIT REVERSE newEvent!
+  gpio_put_masked(RANGE_GPIO << FIRST_GPIO_OUT, newEvent << FIRST_GPIO_OUT);
+
   return true; // keep repeating
 }
