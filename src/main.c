@@ -26,10 +26,10 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include "pico/util/queue.h"
 
 #include "bsp/board.h"
 #include "tusb.h"
-
 #include "usb_descriptors.h"
 
 //--------------------------------------------------------------------+
@@ -48,13 +48,33 @@ enum  {
 };
 
 static uint32_t blink_interval_ms = BLINK_NOT_MOUNTED;
-
 void led_blinking_task(void);
-void hid_task(void);
+
+bool timer_callback(repeating_timer_t *rt);
+// using struct as an example, but primitive types can be used too
+static int v = 0;
+
+
+
 
 /*------------- MAIN -------------*/
 int main(void)
 {
+  hid_gamepad_report_t report =
+      {
+        .x   = 0, .y = 0, .z = 0,
+        .rz = 0, .rx = 0, .ry = 0,
+        .hat = 0, 
+        .buttons = 0
+      };
+
+  repeating_timer_t timer;
+  // negative timeout means exact delay (rather than delay between callbacks)
+  if (!add_repeating_timer_us(-1000000, timer_callback, NULL, &timer)) {
+    //printf("Failed to add timer\n");
+    return 1;
+  }
+
   board_init();
   tusb_init();
 
@@ -63,9 +83,26 @@ int main(void)
     tud_task(); // tinyusb device task
     led_blinking_task();
 
-    hid_task();
+    // Remote wakeup
+    if ( tud_suspended() )
+    {
+      // Wake up host if we are in suspend mode
+      // and REMOTE_WAKEUP feature is enabled by host
+      tud_remote_wakeup();
+    } else
+    {
+      // skip if hid is not ready yet
+      if ( tud_hid_ready() && (v > report.buttons) )
+      {
+        report.buttons = v;
+        tud_hid_report(REPORT_ID_GAMEPAD, &report, sizeof(report));
+      }
+    }
   }
+  //cancel_repeating_timer(&timer);
 }
+
+
 
 //--------------------------------------------------------------------+
 // Device callbacks
@@ -98,127 +135,10 @@ void tud_resume_cb(void)
   blink_interval_ms = BLINK_MOUNTED;
 }
 
+
 //--------------------------------------------------------------------+
 // USB HID
 //--------------------------------------------------------------------+
-
-static void send_hid_report(uint8_t report_id, uint32_t btn)
-{
-  // skip if hid is not ready yet
-  if ( !tud_hid_ready() ) return;
-
-  switch(report_id)
-  {
-    case REPORT_ID_KEYBOARD:
-    {
-      // use to avoid send multiple consecutive zero report for keyboard
-      static bool has_keyboard_key = false;
-
-      if ( btn )
-      {
-        uint8_t keycode[6] = { 0 };
-        keycode[0] = HID_KEY_A;
-
-        tud_hid_keyboard_report(REPORT_ID_KEYBOARD, 0, keycode);
-        has_keyboard_key = true;
-      }else
-      {
-        // send empty key report if previously has key pressed
-        if (has_keyboard_key) tud_hid_keyboard_report(REPORT_ID_KEYBOARD, 0, NULL);
-        has_keyboard_key = false;
-      }
-    }
-    break;
-
-    case REPORT_ID_MOUSE:
-    {
-      int8_t const delta = 5;
-
-      // no button, right + down, no scroll, no pan
-      tud_hid_mouse_report(REPORT_ID_MOUSE, 0x00, delta, delta, 0, 0);
-    }
-    break;
-
-    case REPORT_ID_CONSUMER_CONTROL:
-    {
-      // use to avoid send multiple consecutive zero report
-      static bool has_consumer_key = false;
-
-      if ( btn )
-      {
-        // volume down
-        uint16_t volume_down = HID_USAGE_CONSUMER_VOLUME_DECREMENT;
-        tud_hid_report(REPORT_ID_CONSUMER_CONTROL, &volume_down, 2);
-        has_consumer_key = true;
-      }else
-      {
-        // send empty key report (release key) if previously has key pressed
-        uint16_t empty_key = 0;
-        if (has_consumer_key) tud_hid_report(REPORT_ID_CONSUMER_CONTROL, &empty_key, 2);
-        has_consumer_key = false;
-      }
-    }
-    break;
-
-    case REPORT_ID_GAMEPAD:
-    {
-      // use to avoid send multiple consecutive zero report for keyboard
-      static bool has_gamepad_key = false;
-
-      hid_gamepad_report_t report =
-      {
-        .x   = 0, .y = 0, .z = 0,
-        .rz = 0, .rx = 0, .ry = 0,
-        .hat = 0, 
-        .buttons = 0
-      };
-
-      if ( btn )
-      {
-        report.hat = GAMEPAD_HAT_UP;
-        report.buttons = GAMEPAD_BUTTON_A;
-        tud_hid_report(REPORT_ID_GAMEPAD, &report, sizeof(report));
-
-        has_gamepad_key = true;
-      }else
-      {
-        report.hat = GAMEPAD_HAT_CENTERED;
-        report.buttons = 0;
-        if (has_gamepad_key) tud_hid_report(REPORT_ID_GAMEPAD, &report, sizeof(report));
-        has_gamepad_key = false;
-      }
-    }
-    break;
-
-    default: break;
-  }
-}
-
-// Every 1ms, we will sent 1 report for each HID profile (keyboard, mouse etc ..)
-// tud_hid_report_complete_cb() is used to send the next report after previous one is complete
-void hid_task(void)
-{
-  // Poll every 1ms
-  const uint32_t interval_ms = 1;
-  static uint32_t start_ms = 0;
-
-  if ( board_millis() - start_ms < interval_ms) return; // not enough time
-  start_ms += interval_ms;
-
-  uint32_t const btn = board_button_read();
-
-  // Remote wakeup
-  if ( tud_suspended() && btn )
-  {
-    // Wake up host if we are in suspend mode
-    // and REMOTE_WAKEUP feature is enabled by host
-    tud_remote_wakeup();
-  }else
-  {
-    // Send the 1st of report chain, the rest will be sent by tud_hid_report_complete_cb()
-    send_hid_report(REPORT_ID_KEYBOARD, btn);
-  }
-}
 
 // Invoked when sent REPORT successfully to host
 // Application can use this to send the next report
@@ -227,14 +147,8 @@ void tud_hid_report_complete_cb(uint8_t instance, uint8_t const* report, uint16_
 {
   (void) instance;
   (void) len;
-
-  uint8_t next_report_id = report[0] + 1;
-
-  if (next_report_id < REPORT_ID_COUNT)
-  {
-    send_hid_report(next_report_id, board_button_read());
-  }
 }
+
 
 // Invoked when received GET_REPORT control request
 // Application must fill buffer report's content and return its length.
@@ -250,6 +164,7 @@ uint16_t tud_hid_get_report_cb(uint8_t instance, uint8_t report_id, hid_report_t
 
   return 0;
 }
+
 
 // Invoked when received SET_REPORT control request or
 // received data on OUT endpoint ( Report ID = 0, Type = 0 )
@@ -282,6 +197,8 @@ void tud_hid_set_report_cb(uint8_t instance, uint8_t report_id, hid_report_type_
   }
 }
 
+
+
 //--------------------------------------------------------------------+
 // BLINKING TASK
 //--------------------------------------------------------------------+
@@ -299,4 +216,14 @@ void led_blinking_task(void)
 
   board_led_write(led_state);
   led_state = 1 - led_state; // toggle
+}
+
+
+
+//--------------------------------------------------------------------+
+// HARDWARE TIMER
+//--------------------------------------------------------------------+
+bool timer_callback(repeating_timer_t *rt) {
+  v += 1;
+  return true; // keep repeating
 }
