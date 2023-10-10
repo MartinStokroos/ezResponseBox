@@ -33,6 +33,7 @@
 #include "tusb.h"
 #include "usb_descriptors.h"
 
+#define HZ 200  //sampling delay in us
 #define NCHAN 8 //max number of input/output channels = 8
 #define FIRST_GPIO_IN 0
 #define FIRST_GPIO_OUT (FIRST_GPIO_IN + 8)
@@ -120,7 +121,7 @@ int main(void)
 
   repeating_timer_t timer;
   // negative timeout means exact delay in us (rather than delay between callbacks)
-  if (!add_repeating_timer_us(-100, timer_callback, NULL, &timer)) {
+  if (!add_repeating_timer_us(-HZ, timer_callback, NULL, &timer)) {
     //printf("Failed to add timer\n");
     return 1;
   }
@@ -291,20 +292,20 @@ bool timer_callback(repeating_timer_t *rt) {
   for(int k = 0; k < NCHAN; k++)
   {
     dataIn[k] += !gpio_get(FIRST_GPIO_IN + k); // read and invert digital event input streams and put in lsb.
-	  newEvent >>= 1; // right shift to the next channel in the events byte
-	  window[k] = ( (window[k] << 1) | (dataIn[k] & 1) ) & 0x1f; // calculate the 5 bit window
-	  newEvent += 128*filtered[window[k]]; // decide for the new event to be a one or a zero, fill newEvent from the msb
-	  dataIn[k] <<= 1; // left shift the channel input streams for the next sample take
+    newEvent >>= 1; // right shift to the next channel in the newEvents byte
+    window[k] = ( (window[k] << 1) | (dataIn[k] & 1) ) & 0x1f; // calculate the 5 bit window
+    newEvent += 128*filtered[window[k]]; // decide for the new event to be a one or a zero, fill newEvent from the msb
+    dataIn[k] <<= 1; // left shift the channel input streams for the next sample take
   }
 
-  // detect any changes and put a flag
+  // Detect for any changes and put a flag
   if(newEvent ^ lastEvent)
   {
-	  lastEvent = newEvent;
-	  eventChange = true;
+    lastEvent = newEvent;
+    eventChange = true;
   }
 
-  //Forward debounced channels to outputs. Set all GPIOs in one go.
+  // Forward debounced channels to outputs. Set all GPIOs in one go.
   gpio_put_masked(RANGE_GPIO << FIRST_GPIO_OUT, newEvent << FIRST_GPIO_OUT);
 
   return true; // keep repeating
