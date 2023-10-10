@@ -33,6 +33,7 @@
 #include "tusb.h"
 #include "usb_descriptors.h"
 
+#define NCHAN 8 //max number of input/output channels = 8
 #define FIRST_GPIO_IN 0
 #define FIRST_GPIO_OUT (FIRST_GPIO_IN + 8)
 #define RANGE_GPIO 0xFFFF
@@ -59,11 +60,11 @@ bool timer_callback(repeating_timer_t *rt);
 // globals
 static uint32_t blink_interval_ms = BLINK_NOT_MOUNTED;
 static uint8_t lastEvent;
-static bool eventAvailable;
-static uint8_t dataIn[8] = {0, 0, 0, 0, 0, 0, 0, 0}; //input sample buffer
-static uint8_t window[8] = {0, 0, 0, 0, 0, 0, 0, 0}; //filter window
-static uint8_t newEvent=0;
-static const uint8_t filtered[32]=
+static bool eventChange;
+static uint8_t dataIn[8] = {0, 0, 0, 0, 0, 0, 0, 0}; // 8-ch parallel input sample buffer
+static uint8_t window[8] = {0, 0, 0, 0, 0, 0, 0, 0}; // store 8-ch parallel window data
+static uint8_t newEvent = 0;
+static const uint8_t filtered[32] =
 {
   0, //00000
   0, //00001
@@ -103,18 +104,18 @@ static const uint8_t filtered[32]=
 /*------------- MAIN -------------*/
 int main(void)
 {
-  for (int gpio = FIRST_GPIO_IN; gpio < FIRST_GPIO_IN + 8; gpio++)
+  for (int gpio = FIRST_GPIO_IN; gpio < FIRST_GPIO_IN + NCHAN; gpio++)
   {
     gpio_init(gpio);
     gpio_set_dir(gpio, GPIO_IN);
     gpio_pull_up(gpio);
   }
 
-  for (int gpio = FIRST_GPIO_OUT; gpio < FIRST_GPIO_OUT + 8; gpio++)
+  for (int gpio = FIRST_GPIO_OUT; gpio < FIRST_GPIO_OUT + NCHAN; gpio++)
   {
     gpio_init(gpio);
     gpio_set_dir(gpio, GPIO_OUT);
-    //gpio_set_outover(gpio, GPIO_OVERRIDE_INVERT);
+    //gpio_set_outover(gpio, GPIO_OVERRIDE_INVERT); //add to invert channel outputs
   }
 
   repeating_timer_t timer;
@@ -149,11 +150,11 @@ int main(void)
     }else
     {
       // skip if hid is not ready yet
-      if ( tud_hid_ready() && eventAvailable )
+      if ( tud_hid_ready() && eventChange )
       {
         report.buttons = lastEvent;
         tud_hid_report(REPORT_ID_GAMEPAD, &report, sizeof(report));
-        eventAvailable = false;
+        eventChange = false;
       }
     }
   }
@@ -283,31 +284,27 @@ void led_blinking_task(void)
 //--------------------------------------------------------------------+
 bool timer_callback(repeating_timer_t *rt) {
 
-  for(int k = 0; k < FIRST_GPIO_IN+8; k++)
-  {
-    dataIn[k] += !gpio_get(FIRST_GPIO_IN + k); // read and invert digital event inputs and put in lsb.
-  }
-
   // Debounce filter according Steven Pigeon, taken from:
   // https://hbfs.wordpress.com/2008/08/20/debouncing-using-binary-finite-impulse-reponse-filter/
   // window size = 5 bits. Filter delay is two sample periods.
   newEvent = 0;
-  for(int k = 7; k >= 0; k--)
+  for(int k = 0; k < NCHAN; k++)
   {
-	  newEvent <<= 1; //left shift for the next channel in the event byte
-	  window[k] = ( (window[k] << 1) | (dataIn[k] & 1) ) & 0x1f; //calculate the 5 bit window
-	  newEvent += filtered[window[k]]; //decide for the new event to be a one or a zero
-	  dataIn[k] <<= 1; //left shift the channel input streams for the next sample take
+    dataIn[k] += !gpio_get(FIRST_GPIO_IN + k); // read and invert digital event input streams and put in lsb.
+	  newEvent >>= 1; // right shift to the next channel in the events byte
+	  window[k] = ( (window[k] << 1) | (dataIn[k] & 1) ) & 0x1f; // calculate the 5 bit window
+	  newEvent += 128*filtered[window[k]]; // decide for the new event to be a one or a zero, fill newEvent from the msb
+	  dataIn[k] <<= 1; // left shift the channel input streams for the next sample take
   }
 
-  // detect on changes and put a flag
+  // detect any changes and put a flag
   if(newEvent ^ lastEvent)
   {
 	  lastEvent = newEvent;
-	  eventAvailable = true;
+	  eventChange = true;
   }
 
-  //Forward debounced to outputs. Set all GPIOs in one go. To do: MUST BIT REVERSE newEvent!
+  //Forward debounced channels to outputs. Set all GPIOs in one go.
   gpio_put_masked(RANGE_GPIO << FIRST_GPIO_OUT, newEvent << FIRST_GPIO_OUT);
 
   return true; // keep repeating
