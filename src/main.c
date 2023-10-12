@@ -67,38 +67,38 @@ static uint8_t window[8] = {0, 0, 0, 0, 0, 0, 0, 0}; // store 8-ch parallel wind
 static uint8_t newEvent = 0;
 static const uint8_t filtered[32] =
 {
-  0, //00000
-  0, //00001
-  0, //00010
-  1, //00011
-  0, //00100
-  1, //00101
-  1, //00110
-  1, //00111
-  0, //01000
-  1, //01001
-  1, //01010
-  1, //01011
-  1, //01100
-  1, //01101
-  1, //01110
-  1, //01111
-  0, //10000
-  0, //10001
-  0, //10010
-  1, //10011
-  0, //10100
-  1, //10101
-  1, //10110
-  1, //10111
-  0, //11000
-  1, //11001
-  1, //11010
-  1, //11011
-  1, //11100
-  1, //11101
-  1, //11110
-  1	 //11111
+  0,  //00000
+  0,  //00001
+  0,  //00010
+  1,  //00011
+  0,  //00100
+  1,  //00101
+  1,  //00110
+  1,  //00111
+  0,  //01000
+  1,  //01001
+  1,  //01010
+  1,  //01011
+  1,  //01100
+  1,  //01101
+  1,  //01110
+  1,  //01111
+  0,  //10000
+  0,  //10001
+  0,  //10010
+  1,  //10011
+  0,  //10100
+  1,  //10101
+  1,  //10110
+  1,  //10111
+  0,  //11000
+  1,  //11001
+  1,  //11010
+  1,  //11011
+  1,  //11100
+  1,  //11101
+  1,  //11110
+  1   //11111
 };
 
 
@@ -287,25 +287,25 @@ bool timer_callback(repeating_timer_t *rt) {
 
   // Debounce filter according Steven Pigeon, taken from:
   // https://hbfs.wordpress.com/2008/08/20/debouncing-using-binary-finite-impulse-reponse-filter/
-  // window size = 5 bits. Filter delay is two sample periods.
+  // window size = 5 bits. Filter delay is two timer periods.
   newEvent = 0;
   for(int k = 0; k < NCHAN; k++)
   {
-    dataIn[k] += !gpio_get(FIRST_GPIO_IN + k); // read and invert digital event input streams and put in lsb.
-    newEvent >>= 1; // right shift to the next channel in the newEvents byte
+    dataIn[k] += !gpio_get(FIRST_GPIO_IN + k); // Read and invert the digital event input streams and put in lsb.
+    newEvent >>= 1; // Right shift the newEvents byte for new msb position
     window[k] = ( (window[k] << 1) | (dataIn[k] & 1) ) & 0x1f; // calculate the 5 bit window
-    newEvent += 128*filtered[window[k]]; // decide for the new event to be a one or a zero, fill newEvent from the msb
-    dataIn[k] <<= 1; // left shift the channel input streams for the next sample take
+    newEvent += 128*filtered[window[k]]; // decide for the new event to be a one or a zero, write the newEvent msb
+    dataIn[k] <<= 1; // Left shift the event input streams for taking the next sample.
   }
 
-  // Detect for any changes and put a flag
+  // Detect any changes and put a flag
   if(newEvent ^ lastEvent)
   {
     lastEvent = newEvent;
     eventChange = true;
   }
 
-  // Forward debounced channels to outputs. Set all GPIOs in one go.
+  // Route debounced events to hardware outputs. Set all GPIOs in one go.
   gpio_put_masked(RANGE_GPIO << FIRST_GPIO_OUT, newEvent << FIRST_GPIO_OUT);
 
   return true; // keep repeating
