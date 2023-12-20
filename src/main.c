@@ -59,6 +59,8 @@ enum {
 
 // prototypes
 void led_blinking_task(void);
+void hid_task(void);
+static void send_hid_report(uint8_t report_id);
 bool timer_callback(repeating_timer_t *rt);
 
 // globals
@@ -66,7 +68,7 @@ static uint32_t blink_interval_ms = BLINK_NOT_MOUNTED;
 static uint32_t portsAll;
 static uint8_t newEvent;
 static uint8_t lastEvent;
-static bool eventChange;
+static bool eventUpdate;
 
 # ifdef FIR_DEBOUNCE
   //static uint8_t firBuf[8] = {0, 0, 0, 0, 0, 0, 0, 0}; // 8-ch parallel input sample buffer
@@ -135,37 +137,14 @@ int main(void)
   board_init();
   tusb_init();
 
-  hid_gamepad_report_t report =
-  {
-    .x   = 0, .y = 0, .z = 0,
-    .rz = 0, .rx = 0, .ry = 0,
-    .hat = 0, 
-    .buttons = 0
-  };
-
   while (1)
   {
     tud_task(); // tinyusb device task
     led_blinking_task();
 
-    // Remote wakeup
-    if ( tud_suspended() )
-    {
-      // Wake up host if we are in suspend mode
-      // and REMOTE_WAKEUP feature is enabled by host
-      tud_remote_wakeup();
-    }else
-    {
-      // skip if hid is not ready yet
-      if ( tud_hid_ready() && eventChange )
-      {
-        report.buttons = lastEvent;
-        tud_hid_report(REPORT_ID_GAMEPAD, &report, sizeof(report));
-        eventChange = false;
-      }
-    }
+    hid_task();
+    //cancel_repeating_timer(&timer);
   }
-  //cancel_repeating_timer(&timer);
 }
 
 
@@ -287,9 +266,86 @@ void led_blinking_task(void)
 
 
 //--------------------------------------------------------------------+
+// HID TASK
+//--------------------------------------------------------------------+
+void hid_task(void)
+{
+  // Remote wakeup
+  if ( tud_suspended() && eventUpdate)
+  {
+    // Wake up host if we are in suspend mode
+    // and REMOTE_WAKEUP feature is enabled by host
+    tud_remote_wakeup();
+  }else
+  {
+    send_hid_report(REPORT_ID_GAMEPAD);
+  }
+}
+
+
+
+//--------------------------------------------------------------------+
+// SEND HID REPORT
+//--------------------------------------------------------------------+
+static void send_hid_report(uint8_t report_id)
+{
+  // skip if hid is not ready yet
+  if ( !tud_hid_ready() ) return;
+
+  switch(report_id)
+  {
+    case REPORT_ID_KEYBOARD:
+    {
+      // use to avoid send multiple consecutive zero report for keyboard
+      static bool has_keyboard_key = false;
+
+      if ( eventUpdate )
+      {
+        uint8_t keycode[6] = { 0 };
+        keycode[0] = HID_KEY_A;
+
+        tud_hid_keyboard_report(REPORT_ID_KEYBOARD, 0, keycode);
+        has_keyboard_key = true;
+      }else
+      {
+        // send empty key report if previously has key pressed
+        if (has_keyboard_key) tud_hid_keyboard_report(REPORT_ID_KEYBOARD, 0, NULL);
+        has_keyboard_key = false;
+      }
+    }
+    break;
+
+    case REPORT_ID_GAMEPAD:
+    {
+      hid_gamepad_report_t report =
+      {
+      .x   = 0, .y = 0, .z = 0,
+      .rz = 0, .rx = 0, .ry = 0,
+      .hat = 0, 
+      .buttons = 0
+      };
+
+      if ( eventUpdate )
+      {
+        report.buttons = lastEvent;
+        // report.hat = 0 // completing axis data, etc.
+        tud_hid_report(REPORT_ID_GAMEPAD, &report, sizeof(report));
+        eventUpdate = false;
+      }
+    }
+    break;
+
+    default: break;
+  }
+}
+
+
+
+//--------------------------------------------------------------------+
 // HARDWARE TIMER
 //--------------------------------------------------------------------+
-bool timer_callback(repeating_timer_t *rt) {
+bool timer_callback(repeating_timer_t *rt)
+{
 
   // Debounce filter according Steven Pigeon, taken from:
   // https://hbfs.wordpress.com/2008/08/20/debouncing-using-binary-finite-impulse-reponse-filter/
@@ -316,7 +372,7 @@ bool timer_callback(repeating_timer_t *rt) {
   if(newEvent ^ lastEvent)
   {
     lastEvent = newEvent;
-    eventChange = true;
+    eventUpdate = true;
   }
 
   // Route debounced events to hardware outputs. Set all GPIOs in one go.
