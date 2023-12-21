@@ -69,6 +69,7 @@ static uint32_t portsAll;
 static uint8_t newEvent;
 static uint8_t lastEvent;
 static bool eventUpdate;
+bool ncContacts = false;
 
 # ifdef FIR_DEBOUNCE
   //static uint8_t firBuf[8] = {0, 0, 0, 0, 0, 0, 0, 0}; // 8-ch parallel input sample buffer
@@ -136,6 +137,14 @@ int main(void)
 
   board_init();
   tusb_init();
+
+  // Detect if one or more switches are NC and pulling down the input.
+  portsAll = ~gpio_get_all(); // Read all gpio's (29-0) at once and bitwise invert.
+  portsAll = portsAll >> FIRST_GPIO_IN;
+  if ((portsAll & 0xFF) > 0) // Use bitmask for 8 bits. Size of NCHAN could be different(!)
+  {
+    ncContacts = true;
+  }
 
   while (1)
   {
@@ -352,7 +361,13 @@ bool timer_callback(repeating_timer_t *rt)
   // window size = 5 bits. Filter delay is two timer periods.
   newEvent = 0;
 
-  portsAll = ~gpio_get_all(); // Read all gpio's (29-0) at once and bitwise invert.
+  if(ncContacts)
+  {
+    portsAll = gpio_get_all(); // Read all gpio's (29-0) at once.
+  }else
+  {
+    portsAll = ~gpio_get_all(); // Read all gpio's (29-0) at once and bitwise invert.
+  }
   portsAll = portsAll >> FIRST_GPIO_IN;
 
 #ifdef NO_DEBOUNCE
