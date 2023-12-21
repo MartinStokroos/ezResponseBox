@@ -287,7 +287,8 @@ void hid_task(void)
     tud_remote_wakeup();
   }else
   {
-    send_hid_report(REPORT_ID_GAMEPAD);
+    //send_hid_report(REPORT_ID_GAMEPAD);
+    send_hid_report(REPORT_ID_KEYBOARD);
   }
 }
 
@@ -310,10 +311,23 @@ static void send_hid_report(uint8_t report_id)
 
       if ( eventUpdate )
       {
+        uint8_t buf[] = {lastEvent}; // fill buffer with the single event byte
         uint8_t keycode[6] = { 0 };
-        keycode[0] = HID_KEY_A;
+        // keycode[0] = HID_KEY_A;
+        uint8_t * pin = buf;
+        const char * hex = "0123456789ABCDEF";
+        uint8_t * pout = keycode;
+        int i;
+        for(i=0; i < sizeof(buf)-1; ++i)
+        {
+          *pout++ = hex[(*pin>>4)&0xF];
+          *pout++ = hex[(*pin++)&0xF];
+        }
+        *pout++ = hex[(*pin>>4)&0xF];
+        *pout++ = hex[(*pin)&0xF];
+        *pout = 0;
 
-        tud_hid_keyboard_report(REPORT_ID_KEYBOARD, 0, keycode);
+        tud_hid_keyboard_report(REPORT_ID_KEYBOARD, i, keycode); //conversion to hex chars not working yet...
         has_keyboard_key = true;
       }else
       {
@@ -321,6 +335,7 @@ static void send_hid_report(uint8_t report_id)
         if (has_keyboard_key) tud_hid_keyboard_report(REPORT_ID_KEYBOARD, 0, NULL);
         has_keyboard_key = false;
       }
+      eventUpdate = false;
     }
     break;
 
