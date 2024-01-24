@@ -36,7 +36,10 @@
 #define FIR_DEBOUNCE
 //#define NO_DEBOUNCE
 
-#define HZ 100  //sampling delay in us
+//#define REP_KEYB_ON
+#define REP_JOY_ON
+
+#define HZ 100  //digital input sampling delay in us.
 #define NCHAN 8 //max number of input/output channels = 8
 #define FIRST_GPIO_IN 0
 #define FIRST_GPIO_OUT (FIRST_GPIO_IN + 8)
@@ -62,6 +65,8 @@ void led_blinking_task(void);
 void hid_task(void);
 static void send_hid_report(uint8_t report_id);
 bool timer_callback(repeating_timer_t *rt);
+void to_hex(uint8_t* in, uint8_t* out);
+void to_keycode(uint8_t* in, size_t insz, uint8_t* out);
 
 // globals
 static uint32_t blink_interval_ms = BLINK_NOT_MOUNTED;
@@ -141,7 +146,7 @@ int main(void)
   // Detect if one or more switches are NC and pulling down the input.
   portsAll = ~gpio_get_all(); // Read all gpio's (29-0) at once and bitwise invert.
   portsAll = portsAll >> FIRST_GPIO_IN;
-  if ((portsAll & 0xFF) > 0) // Use bitmask for 8 bits. Size of NCHAN could be different(!)
+  if ((portsAll & 0xFF) > 0) // Use bitmask for 8 bits. (Size of NCHAN could be different!)
   {
     ncContacts = true;
   }
@@ -241,7 +246,7 @@ void tud_hid_set_report_cb(uint8_t instance, uint8_t report_id, hid_report_type_
         // Capslock On: disable blink, turn led on
         blink_interval_ms = 0;
         board_led_write(true);
-      }else
+      } else
       {
         // Caplocks Off: back to normal blink
         board_led_write(false);
@@ -285,10 +290,14 @@ void hid_task(void)
     // Wake up host if we are in suspend mode
     // and REMOTE_WAKEUP feature is enabled by host
     tud_remote_wakeup();
-  }else
+  } else
   {
-    //send_hid_report(REPORT_ID_GAMEPAD);
-    send_hid_report(REPORT_ID_KEYBOARD);
+    #ifdef REP_JOY_ON
+      send_hid_report(REPORT_ID_GAMEPAD);
+    #endif
+    #ifdef REP_KEYB_ON
+      send_hid_report(REPORT_ID_KEYBOARD);
+    #endif
   }
 }
 
@@ -311,25 +320,14 @@ static void send_hid_report(uint8_t report_id)
 
       if ( eventUpdate )
       {
-        uint8_t buf[] = {lastEvent}; // fill buffer with the single event byte
-        uint8_t keycode[6] = { 0 };
-        // keycode[0] = HID_KEY_A;
-        uint8_t * pin = buf;
-        const char * hex = "0123456789ABCDEF";
-        uint8_t * pout = keycode;
-        int i;
-        for(i=0; i < sizeof(buf)-1; ++i)
-        {
-          *pout++ = hex[(*pin>>4)&0xF];
-          *pout++ = hex[(*pin++)&0xF];
-        }
-        *pout++ = hex[(*pin>>4)&0xF];
-        *pout++ = hex[(*pin)&0xF];
-        *pout = 0;
-
-        tud_hid_keyboard_report(REPORT_ID_KEYBOARD, i, keycode); //conversion to hex chars not working yet...
+        enum {hexsz = 2};
+        uint8_t hexcode[hexsz]; // target arrays
+        uint8_t keycode[6];
+        to_hex(&lastEvent, hexcode);
+        to_keycode(hexcode, hexsz, keycode);
+        tud_hid_keyboard_report(REPORT_ID_KEYBOARD, 0, keycode);
         has_keyboard_key = true;
-      }else
+      } else
       {
         // send empty key report if previously has key pressed
         if (has_keyboard_key) tud_hid_keyboard_report(REPORT_ID_KEYBOARD, 0, NULL);
@@ -366,6 +364,50 @@ static void send_hid_report(uint8_t report_id)
 
 
 //--------------------------------------------------------------------+
+// Converts a byte to a hexadecimal character string
+//
+//--------------------------------------------------------------------+
+void to_hex(uint8_t * in, uint8_t * out) {
+  uint8_t *pin = in;
+  const char *hex = "0123456789ABCDEF";
+  uint8_t *pout = out;
+
+  *pout++ = hex[(*pin>>4)&0xF];
+  *pout++ = hex[(*pin++)&0xF];
+  //*pout = 0;
+}
+
+
+
+//--------------------------------------------------------------------+
+// Converts hexadecimal character string to keyboard scan codes
+//
+//--------------------------------------------------------------------+
+void to_keycode(uint8_t* in, size_t insz, uint8_t* out) {
+  uint8_t *pin = in;
+  uint8_t *pout = out;
+
+  int i = 0;
+  for(; i < insz; ++i) {
+    if (*pin > 0x40) {  // if ascii letter...
+      *pout++ = *pin++ - 0x3D;
+    }
+    else if(*pin == 0x30) {  // if ascii zero...
+      *pout++ = *pin++ - 0x09;
+    }
+    else {
+      *pout++ = *pin++ - 0x13;  // else ascii number...
+    }
+  }
+  *pout = 0;
+}
+
+
+
+
+
+
+//--------------------------------------------------------------------+
 // HARDWARE TIMER
 //--------------------------------------------------------------------+
 bool timer_callback(repeating_timer_t *rt)
@@ -379,7 +421,7 @@ bool timer_callback(repeating_timer_t *rt)
   if(ncContacts)
   {
     portsAll = gpio_get_all(); // Read all gpio's (29-0) at once.
-  }else
+  } else
   {
     portsAll = ~gpio_get_all(); // Read all gpio's (29-0) at once and bitwise invert.
   }
