@@ -36,8 +36,9 @@
 #define FIR_DEBOUNCE
 //#define NO_DEBOUNCE
 
-//#define REP_KEYB_ON
-#define REP_JOY_ON
+//#define JOY
+#define KEYB
+//#define HEX_KEYB
 
 #define HZ 100  //digital input sampling delay in us.
 #define NCHAN 8 //max number of input/output channels = 8
@@ -71,8 +72,7 @@ void to_keycode(uint8_t* in, size_t insz, uint8_t* out);
 // globals
 static uint32_t blink_interval_ms = BLINK_NOT_MOUNTED;
 static uint32_t portsAll;
-static uint8_t newEvent;
-static uint8_t lastEvent;
+static uint8_t newEvent, lastEvent, xMask;
 static bool eventUpdate;
 bool ncContacts = false;
 
@@ -292,10 +292,13 @@ void hid_task(void)
     tud_remote_wakeup();
   } else
   {
-    #ifdef REP_JOY_ON
+    #ifdef JOY
       send_hid_report(REPORT_ID_GAMEPAD);
     #endif
-    #ifdef REP_KEYB_ON
+    #ifdef HEX_KEYB
+      send_hid_report(REPORT_ID_KEYBOARD);
+    #endif
+    #ifdef KEYB
       send_hid_report(REPORT_ID_KEYBOARD);
     #endif
   }
@@ -320,11 +323,23 @@ static void send_hid_report(uint8_t report_id)
 
       if ( eventUpdate )
       {
-        enum {hexsz = 2};
-        uint8_t hexcode[hexsz]; // target arrays
         uint8_t keycode[6];
-        to_hex(&lastEvent, hexcode);
-        to_keycode(hexcode, hexsz, keycode);
+        
+        #ifdef KEYB
+          for(uint8_t k = 0; k < 6; k++){
+            // handling 6 changes at once
+            if((xMask >> k) & 1) {
+              keycode[k] = ((lastEvent >> k) & 1) ? HID_KEY_1 + k : HID_KEY_NONE;
+            }
+          }
+        #endif
+        #ifdef HEX_KEYB
+          enum {hexsz = 2};
+          uint8_t hexcode[hexsz]; // target arrays
+          to_hex(&lastEvent, hexcode);
+          to_keycode(hexcode, hexsz, keycode);
+        #endif
+
         tud_hid_keyboard_report(REPORT_ID_KEYBOARD, 0, keycode);
         has_keyboard_key = true;
       } else
@@ -441,7 +456,8 @@ bool timer_callback(repeating_timer_t *rt)
 #endif
 
   // Detect any changes and put a flag
-  if(newEvent ^ lastEvent)
+  xMask = newEvent ^ lastEvent;
+  if(xMask > 0)
   {
     lastEvent = newEvent;
     eventUpdate = true;
