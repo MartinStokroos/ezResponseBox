@@ -314,6 +314,7 @@ static void send_hid_report(uint8_t report_id)
   // skip if hid is not ready yet
   if ( !tud_hid_ready() ) return;
 
+
   switch(report_id)
   {
     case REPORT_ID_KEYBOARD:
@@ -323,13 +324,18 @@ static void send_hid_report(uint8_t report_id)
 
       if ( eventUpdate )
       {
-        uint8_t keycode[6];
+        uint8_t keycode[6] = { 0 };
         
         #ifdef KEYB
-          for(uint8_t k = 0; k < 6; k++){
-            // handling 6 changes at once
-            if((xMask >> k) & 1) {
-              keycode[k] = ((lastEvent >> k) & 1) ? HID_KEY_1 + k : HID_KEY_NONE;
+          // handling 6 changes max at once (to be confirmed).
+          // (or set n to 0 and break after the first detection...)
+          uint8_t n = 0;
+          for(uint8_t k = 0; k < NCHAN; k++) {
+            if((newEvent >> k) & (xMask >> k) & 1)
+            {               
+              keycode[n] = HID_KEY_1 + k;
+              n++;
+              if(n == 6) break;
             }
           }
         #endif
