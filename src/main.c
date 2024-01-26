@@ -33,11 +33,11 @@
 #include "tusb.h"
 #include "usb_descriptors.h"
 
-#define FIR_DEBOUNCE
 //#define NO_DEBOUNCE
+#define FIR_DEBOUNCE
 
 //#define JOY
-#define KEYB
+#define NUM_KEYB
 //#define HEX_KEYB
 
 #define HZ 100  //digital input sampling delay in us.
@@ -298,7 +298,7 @@ void hid_task(void)
     #ifdef HEX_KEYB
       send_hid_report(REPORT_ID_KEYBOARD);
     #endif
-    #ifdef KEYB
+    #ifdef NUM_KEYB
       send_hid_report(REPORT_ID_KEYBOARD);
     #endif
   }
@@ -326,19 +326,40 @@ static void send_hid_report(uint8_t report_id)
       {
         uint8_t keycode[6] = { 0 };
         
-        #ifdef KEYB
-          // handling 6 changes max at once (to be confirmed).
-          // (or set n to 0 and break after the first detection...)
-          uint8_t n = 0;
-          for(uint8_t k = 0; k < NCHAN; k++) {
+        #ifdef NUM_KEYB
+          // Double hit testing. z=0. keys1,2,3,4 give 1,2,4 or 8. 
+          // Intermediate values are double hits.
+          //keycode[0] = (newEvent & xMask) + 0x1D; 
+
+          // Handling multiple (six max) changes at once.
+          // In practice, detecting a double key hit is extremely rare
+          // because of the high sampling rate. Max is set to two.
+          uint8_t n=0, k;
+          for(k = 0; k < NCHAN; k++) {
             if((newEvent >> k) & (xMask >> k) & 1)
             {               
               keycode[n] = HID_KEY_1 + k;
               n++;
               if(n == 6) break;
             }
+            //keycode[0] = n + 0x1D; // for double hit debugging purpose
           }
+
+          // Single event change detection.
+          // This detection could miss one event from 
+          // a higher channel if in the rare case two 
+          // inputs changed at the same time...
+          /*
+          for(uint8_t k = 0; k < NCHAN; k++) {
+            if((newEvent >> k) & (xMask >> k) & 1)
+              {               
+                keycode[0] = HID_KEY_1 + k;
+                break;
+              }
+          }
+          */            
         #endif
+
         #ifdef HEX_KEYB
           enum {hexsz = 2};
           uint8_t hexcode[hexsz]; // target arrays
@@ -449,7 +470,7 @@ bool timer_callback(repeating_timer_t *rt)
   portsAll = portsAll >> FIRST_GPIO_IN;
 
 #ifdef NO_DEBOUNCE
-  newEvent = portsAll & 0xFF; // Use bitmask for 8 bits. Size of NCHAN could be different(!)
+  newEvent = portsAll & 0xFF; // Use bitmask for 8 bits. (Size of NCHAN could be different!)
 #endif
 
 # ifdef FIR_DEBOUNCE
@@ -465,12 +486,11 @@ bool timer_callback(repeating_timer_t *rt)
   xMask = newEvent ^ lastEvent;
   if(xMask > 0)
   {
-    lastEvent = newEvent;
     eventUpdate = true;
+    // Route debounced events to hardware outputs. Set all GPIOs in one go.
+    gpio_put_masked(RANGE_GPIO << FIRST_GPIO_OUT, newEvent << FIRST_GPIO_OUT);
+    lastEvent = newEvent;
   }
-
-  // Route debounced events to hardware outputs. Set all GPIOs in one go.
-  gpio_put_masked(RANGE_GPIO << FIRST_GPIO_OUT, newEvent << FIRST_GPIO_OUT);
 
   return true; // keep repeating
 }
