@@ -327,55 +327,42 @@ static void send_hid_report(uint8_t report_id)
         uint8_t keycode[6] = { 0 };
         
         #ifdef NUM_KEYB
-          // Double hit testing. z=0. keys1,2,3,4 give 1,2,4 or 8. 
-          // Intermediate values are double hits.
-          //keycode[0] = (newEvent & xMask) + 0x1D; 
-
-          // Handling multiple (six max) changes at once.
-          // In practice, detecting a double key hit is extremely rare
-          // because of the high sampling rate. Max is set to two.
-          uint8_t n=0, k;
-          for(k = 0; k < NCHAN; k++) {
-            if((newEvent >> k) & (xMask >> k) & 1)
-            {               
-              keycode[n] = HID_KEY_1 + k;
-              n++;
-              if(n == 6) break;
-            }
-            //keycode[0] = n + 0x1D; // for double hit debugging purpose
+          if(lastEvent == 0) { // input changed to zero
+            tud_hid_keyboard_report(REPORT_ID_KEYBOARD, 0, NULL);
           }
-
-          // Single event change detection.
-          // This detection could miss one event from 
-          // a higher channel if in the rare case two 
-          // inputs changed at the same time...
-          /*
-          for(uint8_t k = 0; k < NCHAN; k++) {
-            if((newEvent >> k) & (xMask >> k) & 1)
-              {               
-                keycode[0] = HID_KEY_1 + k;
-                break;
+          else
+          {
+            // Handling multiple (n=6 max) changes at once.
+            // In practice, detecting a double key hit is extremely rare
+            // because of the high sampling rate. n set to 3.
+            uint8_t k, n=0;
+            for(k = 0; k < NCHAN; k++) {
+              if((lastEvent >> k) & (xMask >> k) & 1) {
+                keycode[n] = HID_KEY_1 + k;
+                n++;
               }
+              if(n > 2) break;
+              //keycode[0] = n + 0x1D; // for double hit debugging purpose
+            }
           }
-          */            
+          tud_hid_keyboard_report(REPORT_ID_KEYBOARD, 0, keycode);
         #endif
 
         #ifdef HEX_KEYB
-          enum {hexsz = 2};
+          enum { hexsz = 2 };
           uint8_t hexcode[hexsz]; // target arrays
           to_hex(&lastEvent, hexcode);
           to_keycode(hexcode, hexsz, keycode);
+          tud_hid_keyboard_report(REPORT_ID_KEYBOARD, 0, keycode);
+          has_keyboard_key = true;
         #endif
-
-        tud_hid_keyboard_report(REPORT_ID_KEYBOARD, 0, keycode);
-        has_keyboard_key = true;
-      } else
-      {
+      eventUpdate = false;
+      }
+      else {
         // send empty key report if previously has key pressed
         if (has_keyboard_key) tud_hid_keyboard_report(REPORT_ID_KEYBOARD, 0, NULL);
         has_keyboard_key = false;
       }
-      eventUpdate = false;
     }
     break;
 
@@ -469,28 +456,33 @@ bool timer_callback(repeating_timer_t *rt)
   }
   portsAll = portsAll >> FIRST_GPIO_IN;
 
-#ifdef NO_DEBOUNCE
-  newEvent = portsAll & 0xFF; // Use bitmask for 8 bits. (Size of NCHAN could be different!)
-#endif
+  #ifdef NO_DEBOUNCE
+    newEvent = portsAll & 0xFF; // Use bitmask for 8 bits. (Size of NCHAN could be different!)
+  #endif
 
-# ifdef FIR_DEBOUNCE
-  for(int k = 0; k < NCHAN; k++)
-  {
-    newEvent >>= 1; // Right shift the newEvents byte for new empty msb position
-    window[k] = ( (window[k] << 1) | ((portsAll >> k) & 1) ) & 0x1f; // calculate the 5 bit window
-    newEvent += 128 * filtered[window[k]]; // decide for the new event to be a one or a zero, write the newEvent msb
-  }
-#endif
+  # ifdef FIR_DEBOUNCE
+    for(int k = 0; k < NCHAN; k++)
+    {
+      newEvent >>= 1; // Right shift the newEvents byte for new empty msb position
+      window[k] = ( (window[k] << 1) | ((portsAll >> k) & 1) ) & 0x1f; // calculate the 5 bit window
+      newEvent += 128 * filtered[window[k]]; // decide for the new event to be a one or a zero, write the newEvent msb
+    }
+  #endif
 
-  // Detect any changes and put a flag
-  xMask = newEvent ^ lastEvent;
-  if(xMask > 0)
-  {
-    eventUpdate = true;
-    // Route debounced events to hardware outputs. Set all GPIOs in one go.
-    gpio_put_masked(RANGE_GPIO << FIRST_GPIO_OUT, newEvent << FIRST_GPIO_OUT);
-    lastEvent = newEvent;
+  // Do not miss any changes during the USB send.
+  // lastEvent is send out, because it does not change during the transfer.
+  if(!eventUpdate) {
+    xMask = newEvent ^ lastEvent;
+    if(xMask > 0) {
+      lastEvent = newEvent;
+      eventUpdate = true;
+    }
   }
+  // Detect any changes and put a flag. 
+    
+
+  // Route debounced events to hardware outputs. Set all GPIOs in one go.
+  gpio_put_masked(RANGE_GPIO << FIRST_GPIO_OUT, newEvent << FIRST_GPIO_OUT);
 
   return true; // keep repeating
 }
