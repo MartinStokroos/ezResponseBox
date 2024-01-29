@@ -437,11 +437,10 @@ void to_keycode(uint8_t* in, size_t insz, uint8_t* out) {
 
 
 //--------------------------------------------------------------------+
-// HARDWARE TIMER
+// HARDWARE TIMER ISR
 //--------------------------------------------------------------------+
 bool timer_callback(repeating_timer_t *rt)
 {
-
   // Debounce filter according Steven Pigeon, taken from:
   // https://hbfs.wordpress.com/2008/08/20/debouncing-using-binary-finite-impulse-reponse-filter/
   // window size = 5 bits. Filter delay is two timer periods.
