@@ -34,7 +34,8 @@ joystick button | 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7
 ## The Input GPIOs
 The input GPIOs are GP0 - GP7. The pull-up function is active on all the inputs to interface directly to buttons.
 
-- Using NO/NC button contacts
+**Using NO/NC button contacts**
+
 In the default situation, the *ezResponseBox* works with NO-contacts. If at least one connected switch is NC, the *ezResponseBox* will detect this at start up (immediately after connecting the USB port) and all of the logic input readings will be inverted. Please, don't mix up NO and NC contacts for the sake of simplicity. When using NC-contacts, please tie the unused input pins to the ground (GND).
 
 ## The Output GPIOs
@@ -53,5 +54,5 @@ GPIO20 | debouncing ON | debouncing OFF
 GPIO21 | positive logic outputs | negative logic outputs
 
 ## Known bugs
-Outputs one zero hex character in keyboard mode II for 0-state input on Linux Ubuntu (22.04)
+Outputs (or displays) only one zero hex character in keyboard mode II for 0-state input on Linux Ubuntu (22.04)
 
