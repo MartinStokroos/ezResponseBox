@@ -31,11 +31,17 @@ GPIO-pin | GP0 | GP1 | GP2 | GP3 | GP4 | GP5 | GP6 | GP7
 key press | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8"
 joystick button | 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 
 
-## Using NO/NC button contacts
+## The Input GPIOs
+The input GPIOs are GP0 - GP7. The pull-up function is active on all the inputs to interface directly to buttons.
+
+- Using NO/NC button contacts
 In the default situation, the *ezResponseBox* works with NO-contacts. If at least one connected switch is NC, the *ezResponseBox* will detect this at start up (immediately after connecting the USB port) and all of the logic input readings will be inverted. Please, don't mix up NO and NC contacts for the sake of simplicity. When using NC-contacts, please tie the unused input pins to the ground (GND).
 
+## The Output GPIOs
+The output GPIOs are GP8 - GP15. The logic level is 3.3V. Level converters and/or line drivers are needed to interface to external 5V TTL logic or LEDs.
+
 ## Configuration settings
-When plugged into the  USB port of the computer, multiple devices will register to the operating system. The only active device is selected trough jumper wires or DIP-switches. The configuration is set at start up. See the table below for the configuration settings.
+When plugged into the  USB port of the computer, multiple devices will register to the operating system. The only active device is selected through jumper wires or DIP-switches. The configuration is set at start up. See the table below for the configuration settings.
 
 ![ezResponseBox_bb.png](ezResponseBox_bb.png "wiring diagram")
 
