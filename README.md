@@ -7,11 +7,11 @@ The Raspberry Pico is a low cost micro-controller platform. Together with the de
 
 The Easy Response Box or *ezResponseBox* can operate both, as a keyboard or a joystick type of response box, with a typical latency of 1ms (=1000Hz update rate). The latency is 10 to 20 times lower than for a standard PC-keyboard.
 
-In keyboard mode I, the *ezResponseBox* sends a keyboard hit of key number 1 to 8 depending on the first key hit detected.
+In keyboard mode I, the *ezResponseBox* sends a keyboard hit of key number 1 to 8, depending on the pressed button(s).
 
-In keyboard mode II, the *ezResponseBox* sends out a two character hexadecimal number ranging from `00` tot `FF`. Simultaneous key presses should be decoded in the application program.
+In keyboard mode II, the *ezResponseBox* sends out two hexadecimal digits, ranging from `00` tot `FF`. Simultaneous key presses should be decoded in the application program.
 
-The advantage of a joystick HID device is that the status of multiple switches is sent to the host in a single byte after a state change. The decoding of the buttons should be done in the application program.
+The advantage of a joystick HID device is, that every state change of the input is sent to the host as an eight bit joystick button state. The decoding of the buttons should be done in the application program.
 
 The *ezResponseBox* scans eight digital inputs for reading the momentary button knobs status. Both, Normally Open (NO) and Normally Closed (NC) contacts can be used. The connected button contact type is scanned at power up. NC contacts are faster for detecting the onset of a response. The eight input channels are scanned at a rate of 10kHz and the readings are debounced with a FIR digital filter algorithm with a minimum of delay. The debounced information is then resampled at the HID update rate. Only input state changes are sent to the computer.
 
