@@ -33,18 +33,15 @@
 #include "tusb.h"
 #include "usb_descriptors.h"
 
-//#define NO_DEBOUNCE
-#define FIR_DEBOUNCE
-
-//#define JOY
-#define NUM_KEYB
-//#define HEX_KEYB
-
 #define HZ 100  //digital input sampling delay in us.
 #define NCHAN 8 //max number of input/output channels = 8
 #define FIRST_GPIO_IN 0
 #define FIRST_GPIO_OUT (FIRST_GPIO_IN + 8)
 #define RANGE_GPIO 0xFFFF
+#define KEY_JOY_SEL_PIN 18
+#define KEY_MODE_SEL_PIN 19
+#define DEBOUNCE_SEL_PIN 20
+#define INVERT_OUTPUTS_SEL_PIN 21
 
 //--------------------------------------------------------------------+
 // MACRO CONSTANT TYPEDEF PROTYPES
@@ -74,51 +71,76 @@ static uint32_t blink_interval_ms = BLINK_NOT_MOUNTED;
 static uint32_t portsAll;
 static uint8_t newEvent, lastEvent, xMask;
 static bool eventUpdate;
-bool ncContacts = false;
+typedef struct {
+  bool ncContacts;
+  bool deviceMode;
+  bool keyMode;
+  bool debounceOn;
+  bool invertOp;
+} ezConfig;
+ezConfig config;
 
-# ifdef FIR_DEBOUNCE
-  //static uint8_t firBuf[8] = {0, 0, 0, 0, 0, 0, 0, 0}; // 8-ch parallel input sample buffer
-  static uint8_t window[8] = {0, 0, 0, 0, 0, 0, 0, 0}; // store 8-ch parallel window data
-  static const uint8_t filtered[32] =
-  {
-    0,  //00000
-    0,  //00001
-    0,  //00010
-    1,  //00011
-    0,  //00100
-    1,  //00101
-    1,  //00110
-    1,  //00111
-    0,  //01000
-    1,  //01001
-    1,  //01010
-    1,  //01011
-    1,  //01100
-    1,  //01101
-    1,  //01110
-    1,  //01111
-    0,  //10000
-    0,  //10001
-    0,  //10010
-    1,  //10011
-    0,  //10100
-    1,  //10101
-    1,  //10110
-    1,  //10111
-    0,  //11000
-    1,  //11001
-    1,  //11010
-    1,  //11011
-    1,  //11100
-    1,  //11101
-    1,  //11110
-    1   //11111
-  };
-#endif
+//static uint8_t firBuf[8] = {0, 0, 0, 0, 0, 0, 0, 0}; // 8-ch parallel input sample buffer
+static uint8_t window[8] = {0, 0, 0, 0, 0, 0, 0, 0}; // store 8-ch parallel window data
+static const uint8_t filtered[32] =
+{
+  0,  //00000
+  0,  //00001
+  0,  //00010
+  1,  //00011
+  0,  //00100
+  1,  //00101
+  1,  //00110
+  1,  //00111
+  0,  //01000
+  1,  //01001
+  1,  //01010
+  1,  //01011
+  1,  //01100
+  1,  //01101
+  1,  //01110
+  1,  //01111
+  0,  //10000
+  0,  //10001
+  0,  //10010
+  1,  //10011
+  0,  //10100
+  1,  //10101
+  1,  //10110
+  1,  //10111
+  0,  //11000
+  1,  //11001
+  1,  //11010
+  1,  //11011
+  1,  //11100
+  1,  //11101
+  1,  //11110
+  1   //11111
+};
+
 
 /*------------- MAIN -------------*/
 int main(void)
 {
+  gpio_init(KEY_JOY_SEL_PIN);
+  gpio_init(KEY_MODE_SEL_PIN);
+  gpio_init(DEBOUNCE_SEL_PIN);
+  gpio_init(INVERT_OUTPUTS_SEL_PIN);
+  gpio_set_dir(KEY_JOY_SEL_PIN, GPIO_IN);
+  gpio_set_dir(KEY_MODE_SEL_PIN, GPIO_IN);
+  gpio_set_dir(DEBOUNCE_SEL_PIN, GPIO_IN);
+  gpio_set_dir(INVERT_OUTPUTS_SEL_PIN, GPIO_IN);
+  gpio_pull_up(KEY_JOY_SEL_PIN);
+  gpio_pull_up(KEY_MODE_SEL_PIN);
+  gpio_pull_up(DEBOUNCE_SEL_PIN);
+  gpio_pull_up(INVERT_OUTPUTS_SEL_PIN);
+
+  // Read the hardware configuration status
+  config.deviceMode = gpio_get(KEY_JOY_SEL_PIN);
+  config.keyMode = gpio_get(KEY_MODE_SEL_PIN);
+  config.debounceOn = gpio_get(DEBOUNCE_SEL_PIN);
+  config.invertOp = gpio_get(INVERT_OUTPUTS_SEL_PIN);
+
   for (int gpio = FIRST_GPIO_IN; gpio < FIRST_GPIO_IN + NCHAN; gpio++)
   {
     gpio_init(gpio);
@@ -130,25 +152,27 @@ int main(void)
   {
     gpio_init(gpio);
     gpio_set_dir(gpio, GPIO_OUT);
-    //gpio_set_outover(gpio, GPIO_OVERRIDE_INVERT); //add to invert channel outputs
-  }
-
-  repeating_timer_t timer;
-  // negative timeout means exact delay in us (rather than delay between callbacks)
-  if (!add_repeating_timer_us(-HZ, timer_callback, NULL, &timer)) {
-    //printf("Failed to add timer\n");
-    return 1;
-  }
-
-  board_init();
-  tusb_init();
+    if(!config.invertOp) {
+      gpio_set_outover(gpio, GPIO_OVERRIDE_INVERT); //invert output channels
+    }
+  }  
 
   // Detect if one or more switches are NC and pulling down the input.
   portsAll = ~gpio_get_all(); // Read all gpio's (29-0) at once and bitwise invert.
   portsAll = portsAll >> FIRST_GPIO_IN;
   if ((portsAll & 0xFF) > 0) // Use bitmask for 8 bits. (Size of NCHAN could be different!)
   {
-    ncContacts = true;
+    config.ncContacts = true;
+  }
+
+  board_init();
+  tusb_init();
+
+  repeating_timer_t timer;
+  // negative timeout means exact delay in us (rather than delay between callbacks)
+  if (!add_repeating_timer_us(-HZ, timer_callback, NULL, &timer)) {
+    //printf("Failed to add timer\n");
+    return 1;
   }
 
   while (1)
@@ -285,22 +309,17 @@ void led_blinking_task(void)
 void hid_task(void)
 {
   // Remote wakeup
-  if ( tud_suspended() && eventUpdate)
-  {
+  if ( tud_suspended() && eventUpdate) {
     // Wake up host if we are in suspend mode
     // and REMOTE_WAKEUP feature is enabled by host
     tud_remote_wakeup();
   } else
   {
-    #ifdef JOY
+    if(config.deviceMode == true) {
+      send_hid_report(REPORT_ID_KEYBOARD);
+    } else {
       send_hid_report(REPORT_ID_GAMEPAD);
-    #endif
-    #ifdef HEX_KEYB
-      send_hid_report(REPORT_ID_KEYBOARD);
-    #endif
-    #ifdef NUM_KEYB
-      send_hid_report(REPORT_ID_KEYBOARD);
-    #endif
+    }
   }
 }
 
@@ -321,19 +340,18 @@ static void send_hid_report(uint8_t report_id)
     {
       // use to avoid send multiple consecutive zero report for keyboard
       static bool has_keyboard_key = false;
+      uint8_t keycode[6] = { 0 };
 
       if ( eventUpdate )
       {
-        uint8_t keycode[6] = { 0 };
-        
-        #ifdef NUM_KEYB
+        if(config.keyMode == true) {
           if(lastEvent == 0) { // input changed to zero
             tud_hid_keyboard_report(REPORT_ID_KEYBOARD, 0, NULL);
           }
           else
           {
             // Handling multiple (n=6 max) changes at once.
-            // In practice, detecting a double key hit is extremely rare
+            // In practice, detecting a double key hit will be seldom,
             // because of the high sampling rate. n set to 3.
             uint8_t k, n=0;
             for(k = 0; k < NCHAN; k++) {
@@ -346,16 +364,14 @@ static void send_hid_report(uint8_t report_id)
             }
           }
           tud_hid_keyboard_report(REPORT_ID_KEYBOARD, 0, keycode);
-        #endif
-
-        #ifdef HEX_KEYB
+        } else { // output hex
           enum { hexsz = 2 };
-          uint8_t hexcode[hexsz]; // target arrays
+          uint8_t hexcode[hexsz]; // create target array
           to_hex(&lastEvent, hexcode);
           to_keycode(hexcode, hexsz, keycode);
           tud_hid_keyboard_report(REPORT_ID_KEYBOARD, 0, keycode);
           has_keyboard_key = true;
-        #endif
+        }
       eventUpdate = false;
       }
       else {
@@ -368,16 +384,14 @@ static void send_hid_report(uint8_t report_id)
 
     case REPORT_ID_GAMEPAD:
     {
-      hid_gamepad_report_t report =
-      {
-      .x   = 0, .y = 0, .z = 0,
-      .rz = 0, .rx = 0, .ry = 0,
-      .hat = 0, 
-      .buttons = 0
+      hid_gamepad_report_t report = {
+        .x   = 0, .y = 0, .z = 0,
+        .rz = 0, .rx = 0, .ry = 0,
+        .hat = 0, 
+        .buttons = 0
       };
 
-      if ( eventUpdate )
-      {
+      if ( eventUpdate ) {
         report.buttons = lastEvent;
         // report.hat = 0 // completing axis data, etc.
         tud_hid_report(REPORT_ID_GAMEPAD, &report, sizeof(report));
@@ -396,13 +410,13 @@ static void send_hid_report(uint8_t report_id)
 // Converts a byte to a hexadecimal character string
 //
 //--------------------------------------------------------------------+
-void to_hex(uint8_t * in, uint8_t * out) {
+void to_hex(uint8_t* in, uint8_t* out) {
   uint8_t *pin = in;
   const char *hex = "0123456789ABCDEF";
   uint8_t *pout = out;
 
-  *pout++ = hex[(*pin>>4)&0xF];
-  *pout++ = hex[(*pin++)&0xF];
+  *pout++ = hex[(*pin >> 4) & 0xF];
+  *pout++ = hex[(*pin++) & 0xF];
   //*pout = 0;
 }
 
@@ -415,10 +429,10 @@ void to_hex(uint8_t * in, uint8_t * out) {
 void to_keycode(uint8_t* in, size_t insz, uint8_t* out) {
   uint8_t *pin = in;
   uint8_t *pout = out;
-
   int i = 0;
+
   for(; i < insz; ++i) {
-    if (*pin > 0x40) {  // if ascii letter...
+    if(*pin > 0x40) {  // if ascii letter...
       *pout++ = *pin++ - 0x3D;
     }
     else if(*pin == 0x30) {  // if ascii zero...
@@ -441,47 +455,39 @@ void to_keycode(uint8_t* in, size_t insz, uint8_t* out) {
 //--------------------------------------------------------------------+
 bool timer_callback(repeating_timer_t *rt)
 {
-  // Debounce filter according Steven Pigeon, taken from:
-  // https://hbfs.wordpress.com/2008/08/20/debouncing-using-binary-finite-impulse-reponse-filter/
-  // window size = 5 bits. Filter delay is two timer periods.
   newEvent = 0;
 
-  if(ncContacts)
-  {
+  if(config.ncContacts) {
     portsAll = gpio_get_all(); // Read all gpio's (29-0) at once.
-  } else
-  {
+  } else {
     portsAll = ~gpio_get_all(); // Read all gpio's (29-0) at once and bitwise invert.
   }
   portsAll = portsAll >> FIRST_GPIO_IN;
 
-  #ifdef NO_DEBOUNCE
-    newEvent = portsAll & 0xFF; // Use bitmask for 8 bits. (Size of NCHAN could be different!)
-  #endif
-
-  # ifdef FIR_DEBOUNCE
-    for(int k = 0; k < NCHAN; k++)
-    {
+  if(config.debounceOn) {
+    // Debounce filter according Steven Pigeon, taken from:
+    // https://hbfs.wordpress.com/2008/08/20/debouncing-using-binary-finite-impulse-reponse-filter/
+    // window size = 5 bits. Filter delay is two timer periods.
+    for(int k = 0; k < NCHAN; k++) {
       newEvent >>= 1; // Right shift the newEvents byte for new empty msb position
       window[k] = ( (window[k] << 1) | ((portsAll >> k) & 1) ) & 0x1f; // calculate the 5 bit window
       newEvent += 128 * filtered[window[k]]; // decide for the new event to be a one or a zero, write the newEvent msb
     }
-  #endif
+  } else {
+    newEvent = portsAll & 0xFF; // Use bitmask for 8 bits.
+  }
 
   // Do not miss any changes during the USB send.
   // lastEvent is send out, because it does not change during the transfer.
   if(!eventUpdate) {
     xMask = newEvent ^ lastEvent;
-    if(xMask > 0) {
+    if(xMask > 0) { // Detect any changes and put a flag. 
       lastEvent = newEvent;
       eventUpdate = true;
     }
   }
-  // Detect any changes and put a flag. 
-    
 
   // Route debounced events to hardware outputs. Set all GPIOs in one go.
   gpio_put_masked(RANGE_GPIO << FIRST_GPIO_OUT, newEvent << FIRST_GPIO_OUT);
-
   return true; // keep repeating
 }
