@@ -3,17 +3,17 @@
 
 Button reponse boxes are commonly used in Psychology experiments. Usually, response boxes are interfaced as serial device or as Human Interface Device (HID) like a keyboard or joystick.
 
-The Raspberry Pico is a low cost micro-controller platform. Together with the desirable number of input buttons (1-8) and a plastic box enclosure, a less than 50$ response box can be realized with similar specifications as to most of the commercial counterparts. The *ezResponseBox* can be used for example with [OpenSesame](https://osdoc.cogsci.nl/)
+The Raspberry Pico is a low cost micro-controller platform. Together with the desirable number of input buttons (1-8) and a plastic box enclosure, a less than 50$ response box can be realized with similar specifications as to most of the commercial counterparts. The *ezResponseBox* can be used for example with [OpenSesame](https://osdoc.cogsci.nl/), PsychoPy or E-Prime.
 
 The Easy Response Box or *ezResponseBox* can operate both, as a keyboard or a joystick type of response box with a typical latency of 1ms (=1000Hz update rate). The latency is 10 to 20 times lower than for a standard PC-keyboard.
 
-In keyboard mode I, the *ezResponseBox* sends a keyboard hit of key number 1 to 8, depending on the pressed button(s).
+In keyboard mode I, the *ezResponseBox* sends a keystroke of key numbers 1 to 8, depending on the pressed button(s). Simultaneous key presses are sent with the same USB packet (this will happen very seldom because of the high input scan rate).
 
 In keyboard mode II, the *ezResponseBox* sends out two hexadecimal digits, ranging from `00` tot `FF`. Simultaneous key presses should be decoded in the application program.
 
 The advantage of a joystick HID device is, that every state change of the input is sent to the host as eight bit joystick button state. The decoding of the buttons should be done in the application program.
 
-The *ezResponseBox* scans eight digital inputs for reading the momentary button knobs status. Both, Normally Open (NO) and Normally Closed (NC) contacts can be used. The connected button contact type is scanned at power up. NC contacts are faster for detecting the onset of a response. The eight input channels are scanned at a rate of 10kHz and the readings are debounced with a FIR digital filter algorithm with a minimum of delay. The debounced information is then resampled at the HID update rate. Only input state changes are sent to the computer.
+The *ezResponseBox* scans eight digital inputs for reading the momentary button knobs status. Both, Normally Open (NO) and Normally Closed (NC) contacts can be used. The connected button contact type is scanned at power up. NC contacts are faster for detecting the onset of a response. The eight input channels are scanned at a rate of 10kHz and the readings are debounced with a FIR digital filter algorithm with a delay of two sample periods. The debounced information is then transmitted on the next available USB packet. Only input state changes are sent to the computer.
 
 ## Specifications
 - USB 2.0
