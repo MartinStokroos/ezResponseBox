@@ -52,6 +52,9 @@ GPIO19 | select numerical keys (mode I) | select hexadecimal digits (mode II)
 GPIO20 | debouncing ON | debouncing OFF
 GPIO21 | positive logic outputs | negative logic outputs
 
+## Preparing your Raspberry Pico
+Connect the pico to the PC while pressing the BOOTSEL button. A mass storage device will pop up. Drag the uf2 firmware file into the drive and ready you are!
+
 ## Known bugs
 Outputs (or displays) only one zero hex character in keyboard mode II for the 0-state input code on Linux Ubuntu (22.04)
 
