@@ -54,8 +54,8 @@ GPIO20 | debouncing ON | debouncing OFF
 GPIO21 | positive logic outputs | negative logic outputs
 
 ## Preparing your Raspberry Pico
-Connect the pico to the PC while pressing the BOOTSEL button. A mass storage device will pop up. Drag the uf2 firmware file into the drive and ready you are!
+Hookup some buttons to your pico. Connect the pico to the PC while pressing and holding the BOOTSEL button. A mass storage device will pop up. Drag the uf2 firmware file into the drive and ready you are!
 
 ## Known bugs
-plays only one hex character in keyboard mode II for the 0-state input code in some terminal programs. In real, double zeros are sent.
+Displays only one hex character in keyboard mode II for the 0-state input code in some terminal programs. In real, double zeros are sent.
 
