@@ -9,11 +9,11 @@ The Easy Response Box or *ezResponseBox* can operate both, as a keyboard or a jo
 
 In keyboard mode I, the *ezResponseBox* sends a keystroke of key numbers 1 to 8, depending on the pressed button(s). Simultaneous key presses are sent with the same USB packet (this will happen very seldom because of the high input scan rate).
 
-In keyboard mode II, the *ezResponseBox* sends out two hexadecimal digits, ranging from `00` tot `FF`. Simultaneous key presses should be decoded in the application program.
+In keyboard mode II, the *ezResponseBox* transmits two hexadecimal digits, ranging from `00` tot `FF`. Simultaneous key presses should be decoded in the application program.
 
 The advantage of a joystick HID device is, that every state change of the input is sent to the host as eight bit joystick button state. The decoding of the buttons should be done in the application program.
 
-The *ezResponseBox* scans eight digital inputs for reading the momentary button knobs status. Both, Normally Open (NO) and Normally Closed (NC) contacts can be used. The connected button contact type is scanned at power up. NC contacts are faster for detecting the onset of a response. The eight input channels are scanned at a rate of 10kHz and the readings are debounced with a FIR digital filter algorithm with a delay of two sample periods. The debounced information is then transmitted on the next available USB packet. Only input state changes are sent to the computer.
+The *ezResponseBox* scans eight digital inputs for reading the momentary button knobs status. Both, Normally Open (NO) and Normally Closed (NC) contacts can be used. The connected button contact type is scanned at power up. NC contacts are faster for detecting the onset of a response. The eight input channels are scanned at a rate of 10kHz and the readings are debounced with a FIR digital filter algorithm with a minimum delay of two sample periods. The debounced information is then transmitted on the next available USB packet. Only input state changes are sent to the computer.
 
 ## Specifications
 - USB 2.0
@@ -28,7 +28,8 @@ GPIO pin vs. keyboard/joystick button number:
 
 GPIO-pin | GP0 | GP1 | GP2 | GP3 | GP4 | GP5 | GP6 | GP7
 -------- | --- | --- | --- | --- | --- | --- | --- | ---
-key press | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8"
+keypress | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8"
+hex code | 01 | 02 | 04 | 08 | 10 | 20 | 40 | 80
 joystick button | 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 
 
 ## The Input GPIOs
@@ -56,5 +57,5 @@ GPIO21 | positive logic outputs | negative logic outputs
 Connect the pico to the PC while pressing the BOOTSEL button. A mass storage device will pop up. Drag the uf2 firmware file into the drive and ready you are!
 
 ## Known bugs
-Outputs (or displays) only one zero hex character in keyboard mode II for the 0-state input code on Linux Ubuntu (22.04)
+plays only one hex character in keyboard mode II for the 0-state input code in some terminal programs. In real, double zeros are sent.
 
