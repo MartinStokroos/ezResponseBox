@@ -56,6 +56,11 @@ GPIO21 | positive logic outputs | negative logic outputs
 ## Preparing your Raspberry Pico
 Hookup some buttons to your pico. Connect the pico to the PC while pressing and holding the BOOTSEL button. A mass storage device will pop up. Drag the uf2 firmware file into the drive and ready you are!
 
+## A 10$ Response Box
+A two button response box | bottom side
+------------------------- | -----------
+![](ezResponseBox.png) | ![](ezResponseBox_bottomside.png)
+
 ## Known bugs
 Displays only one hex character in keyboard mode II for the 0-state input code in some terminal programs. In real, double zeros are sent.
 
