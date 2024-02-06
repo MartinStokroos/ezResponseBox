@@ -29,7 +29,7 @@ GPIO pin vs. keyboard/joystick button number:
 GPIO-pin | GP0 | GP1 | GP2 | GP3 | GP4 | GP5 | GP6 | GP7
 -------- | --- | --- | --- | --- | --- | --- | --- | ---
 keypress | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8"
-hex code | 01 | 02 | 04 | 08 | 10 | 20 | 40 | 80
+hex code | $01 | $02 | $04 | $08 | $10 | $20 | $40 | $80
 joystick button | 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 
 
 ## The Input GPIOs
@@ -62,5 +62,6 @@ A two button response box | bottom side
 ![](ezResponseBox.png) | ![](ezResponseBox_bottomside.png)
 
 ## Known bugs
-Displays only one hex character in keyboard mode II for the 0-state input code in some terminal programs. In real, double zeros are sent.
+- Displays only one "0"-character in keyboard mode-II for the 0-state code in some terminal programs. In real, double zeros are sent.
+- The green color of the prototype.
 
