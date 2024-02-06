@@ -212,7 +212,7 @@ char serial[2 * PICO_UNIQUE_BOARD_ID_SIZE_BYTES + 1];
 char const* string_desc_arr [] =
 {
   (const char[]) { 0x09, 0x04 }, // 0: is supported language is English (0x0409)
-  "eelabmart",                   // 1: Manufacturer
+  "BSS-Research Support",        // 1: Manufacturer
   "ezResponseBox",               // 2: Product
   serial,                        // 3: Serials, uses the flash ID
 };
