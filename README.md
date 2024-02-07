@@ -7,7 +7,7 @@ The Raspberry Pico is a low cost micro-controller platform. Together with the de
 
 The Easy Response Box or *ezResponseBox* can operate both, as a keyboard or a joystick type of response box with a typical latency of 1ms (=1000Hz update rate). The latency is 10 to 20 times lower than for a standard PC-keyboard.
 
-In keyboard mode I, the *ezResponseBox* sends a keystroke of key numbers 1 to 8, depending on the pressed button(s). Simultaneous key presses are sent with the same USB packet (this will happen very seldom because of the high input scan rate).
+In keyboard mode I, the *ezResponseBox* sends a keystroke of key numbers 1 to 8, depending on the pressed button(s). Simultaneous key presses are sent with the same USB packet (this will happen very seldomly because of the high input scan rate).
 
 In keyboard mode II, the *ezResponseBox* transmits two hexadecimal digits, ranging from `00` tot `FF`. Simultaneous key presses should be decoded in the application program.
 
@@ -24,22 +24,22 @@ The *ezResponseBox* scans eight digital inputs for reading the momentary button 
 - 10kHz input port scan rate
 - integrated debouncing filter
 
-GPIO pin vs. keyboard/joystick button number:
+GP pin vs. keyboard/joystick button number:
 
-GPIO-pin | GP0 | GP1 | GP2 | GP3 | GP4 | GP5 | GP6 | GP7
+pin: | GP0 | GP1 | GP2 | GP3 | GP4 | GP5 | GP6 | GP7
 -------- | --- | --- | --- | --- | --- | --- | --- | ---
-keypress | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8"
-hex code | $01 | $02 | $04 | $08 | $10 | $20 | $40 | $80
+keypress | '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8'
+hex code | '01' | '02' | '04' | '08' | '10' | '20' | '40' | '80'
 joystick button | 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 
 
 ## The Input GPIOs
-The input GPIOs are GP0 - GP7. The pull-up function is active on all the inputs to interface directly to push buttons.
+The input pins are: GP0 - GP7. The pull-up function is active on all the inputs to interface directly to pushbutton switches.
 
 **Using NO/NC button contacts**
 In the default situation, the *ezResponseBox* works with NO-contacts. If at least one connected switch is NC, the *ezResponseBox* will detect this at start up (immediately after connecting the USB port) and all of the logic input readings will be inverted. Please, don't mix up NO and NC contacts for the sake of simplicity. When using NC-contacts, please tie the unused input pins to the ground (GND).
 
 ## The Output GPIOs
-The output GPIOs are GP8 - GP15. The logic level is 3.3V. Level converters and/or line drivers are needed to interface to external 5V TTL logic or LEDs.
+The output pins are: GP8 - GP15. The logic level is 3.3V. Level converters and/or line drivers are needed to interface to external 5V TTL logic or LEDs.
 
 ## Configuration settings
 When plugged into the  USB port of the computer, multiple devices will register to the operating system. The only active device is selected through jumper wires or DIP-switches. The configuration is set at start up. See the table below for the configuration settings.
@@ -48,13 +48,13 @@ When plugged into the  USB port of the computer, multiple devices will register 
 
 GPIO-pin  | open input | input tied to GND with jumper wire or DIP-switch
 --------- | ---------- | ------------------------------------------------
-GPIO18 | select keyboard | select joystick
-GPIO19 | select numerical keys (mode I) | select hexadecimal digits (mode II)
-GPIO20 | debouncing ON | debouncing OFF
+GPIO18 | select keyboard device | select joystick device
+GPIO19 | select numerical keys (mode-I) | select hexadecimal digits (mode-II)
+GPIO20 | debouncing=ON | debouncing=OFF
 GPIO21 | positive logic outputs | negative logic outputs
 
 ## Preparing your Raspberry Pico
-Hookup some buttons to your pico. Connect the pico to the PC while pressing and holding the BOOTSEL button. A mass storage device will pop up. Drag the uf2 firmware file into the drive and ready you are!
+Hookup one or more buttons to your pico. Connect the pico to the PC while pressing and holding the BOOTSEL button. A mass storage device will pop up. Drag the uf2 firmware file into the drive and ready you are!
 
 ## A 10$ Response Box
 A two button response box | bottom side
@@ -63,5 +63,5 @@ A two button response box | bottom side
 
 ## Known bugs
 - Displays only one "0"-character in keyboard mode-II for the 0-state code in some terminal programs. In real, double zeros are sent.
-- The green color of the prototype.
+- The green color of the prototype:)
 
