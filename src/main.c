@@ -105,7 +105,6 @@ typedef struct {
 } ezConfig;
 ezConfig config;
 
-//static uint8_t firBuf[8] = {0, 0, 0, 0, 0, 0, 0, 0}; // 8-ch parallel input sample buffer
 static uint8_t window[8] = {0, 0, 0, 0, 0, 0, 0, 0}; // store 8-ch parallel window data
 static const uint8_t filtered[32] =
 {
@@ -496,7 +495,7 @@ bool timer_callback(repeating_timer_t *rt)
     for(int k = 0; k < NCHAN; k++) {
       newEvent >>= 1; // Right shift the newEvents byte for new empty msb position
       window[k] = ( (window[k] << 1) | ((portsAll >> k) & 1) ) & 0x1f; // calculate the 5 bit window
-      newEvent += 128 * filtered[window[k]]; // decide for the new event to be a one or a zero, write the newEvent msb
+      newEvent += 128 * filtered[window[k]]; // decide for the new event to become a one or a zero, write the newEvent msb
     }
   } else {
     newEvent = portsAll & 0xFF; // Use bitmask for 8 bits.
