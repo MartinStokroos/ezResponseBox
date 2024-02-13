@@ -16,30 +16,30 @@ The advantage of a joystick HID device is, that every state change of the input 
 The *ezResponseBox* scans eight digital inputs for reading the momentary button knobs status. Both, Normally Open (NO) and Normally Closed (NC) contacts can be used. The connected button contact type is scanned at power up. NC contacts are faster for detecting the onset of a response. The eight input channels are scanned at a rate of 10kHz and the readings are debounced with a FIR digital filter algorithm with a minimum delay of two sample periods. The debounced information is then transmitted on the next available USB packet. Only input state changes are sent to the computer.
 
 ## Specifications
-- USB 2.0
-- works under Windows or Linux
+- USB 2.0 compatible
+- works under Windows and Linux
 - no drivers needed 
 - works as a keyboard or joystick HID-composite device
 - 1ms latency (minimum for HID)
 - 10kHz input port scan rate
-- integrated debouncing filter
+- integrated switch debouncing filter
 
 GP pin vs. keyboard/joystick button number:
 
 pin: | GP0 | GP1 | GP2 | GP3 | GP4 | GP5 | GP6 | GP7
 -------- | --- | --- | --- | --- | --- | --- | --- | ---
 keypress | '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8'
-hex code | '01' | '02' | '04' | '08' | '10' | '20' | '40' | '80'
+hex code | 0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80
 joystick button | 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 
 
 ## The Input GPIOs
 The input pins are: GP0 - GP7. The pull-up function is active on all the inputs to interface directly to pushbutton switches.
 
 **Using NO/NC button contacts**
-In the default situation, the *ezResponseBox* works with NO-contacts. If at least one connected switch is NC, the *ezResponseBox* will detect this at start up (immediately after connecting the USB port) and all of the logic input readings will be inverted. Please, don't mix up NO and NC contacts for the sake of simplicity. When using NC-contacts, please tie the unused input pins to the ground (GND).
+In the default situation, the *ezResponseBox* works with NO-contacts. If at least one connected switch is NC, the *ezResponseBox* will detect this at the start up (immediately after connecting to the USB port) and all of the logic input readings will be inverted. Please, don't mix up NO and NC contacts for the sake of simplicity. When using NC-contacts, please tie the unused input pins to the ground (GND-pin).
 
 ## The Output GPIOs
-The output pins are: GP8 - GP15. The logic level is 3.3V. Level converters and/or line drivers are needed to interface to external 5V TTL logic or LEDs.
+The output pins are: GP8 - GP15. The logic level is 3.3V. Level converters and/or line drivers are needed to interface to external 5V TTL-logic or LED indicators.
 
 ## Configuration settings
 When plugged into the  USB port of the computer, multiple devices will register to the operating system. The only active device is selected through jumper wires or DIP-switches. The configuration is set at start up. See the table below for the configuration settings.
@@ -54,7 +54,7 @@ GPIO20 | debouncing=ON | debouncing=OFF
 GPIO21 | positive logic outputs | negative logic outputs
 
 ## Preparing your Raspberry Pico
-Hookup one or more buttons to your pico. Connect the pico to the PC while pressing and holding the BOOTSEL button. A mass storage device will pop up. Drag the uf2 firmware file into the drive and ready you are!
+Hookup one or more buttons to your pico. Connect the pico to the PC while pressing and holding the BOOTSEL button. A mass storage device will pop up. Drag the uf2 firmware file into the drive and ready you are! The uf2 firmware file can be found under the release download on this Github page.
 
 ## A 10$ Response Box
 A two button response box | bottom side
@@ -62,6 +62,6 @@ A two button response box | bottom side
 ![](ezResponseBox.png) | ![](ezResponseBox_bottomside.png)
 
 ## Known bugs
-- Displays only one "0"-character in keyboard mode-II for the 0-state code in some terminal programs. In real, double zeros are sent.
-- The green color of the prototype:)
+- Displays only one "0"-character in keyboard mode-II for the 0-state code in some text editors or terminal programs. In real, double zeros are sent.
+- The color of the prototype:)
 
