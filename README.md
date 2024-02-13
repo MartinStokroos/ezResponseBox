@@ -33,16 +33,16 @@ hex code | 0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80
 joystick button | 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 
 
 ## The Input GPIOs
-The input pins are: GP0 - GP7. The pull-up function is active on all the inputs to interface directly to pushbutton switches.
+The input pins are: GP0-GP7. The pull-up function is active on all the inputs to interface directly to pushbutton switches.
 
 **Using NO/NC button contacts**
 In the default situation, the *ezResponseBox* works with NO-contacts. If at least one connected switch is NC, the *ezResponseBox* will detect this at the start up (immediately after connecting to the USB port) and all of the logic input readings will be inverted. Please, don't mix up NO and NC contacts for the sake of simplicity. When using NC-contacts, please tie the unused input pins to the ground (GND-pin).
 
 ## The Output GPIOs
-The output pins are: GP8 - GP15. The logic level is 3.3V. Level converters and/or line drivers are needed to interface to external 5V TTL-logic or LED indicators.
+The eight debounced inputs are redirected to eight digital outputs GP8-GP15. The logic state can be inverted (see *Configuration Settings* below). The logic level is 3.3V. Level converters and/or line drivers are needed to interface to external 5V TTL-logic or LED-indicators.
 
-## Configuration settings
-When plugged into the  USB port of the computer, multiple devices will register to the operating system. The only active device is selected through jumper wires or DIP-switches. The configuration is set at start up. See the table below for the configuration settings.
+## Configuration Settings
+When plugged into the  USB port of the computer, multiple devices will register to the operating system. The only active device is the one that is selected through jumper wires or DIP-switches. The configuration is set at start up. See the function table below for the configuration settings.
 
 ![ezResponseBox_bb.png](ezResponseBox_bb.png "wiring diagram")
 
@@ -54,7 +54,8 @@ GPIO20 | debouncing=ON | debouncing=OFF
 GPIO21 | positive logic outputs | negative logic outputs
 
 ## Preparing your Raspberry Pico
-Hookup one or more buttons to your pico. Connect the pico to the PC while pressing and holding the BOOTSEL button. A mass storage device will pop up. Drag the uf2 firmware file into the drive and ready you are! The uf2 firmware file can be found under the release download on this Github page.
+Hookup one or more buttons to your Pico. Connect the Pico to the PC while pressing and holding the BOOTSEL button. A mass storage device will pop up. Drag the uf2 firmware file into the drive and ready you are! The uf2 firmware file can be found under the release download on this Github page.
+This firmware was tested with the Raspberry Pi Pico (without W).
 
 ## A 10$ Button Box
 A two button response box | bottom side
