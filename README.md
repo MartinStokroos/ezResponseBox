@@ -19,7 +19,7 @@ The *ezResponseBox* scans eight digital inputs for reading the momentary button 
 - USB 2.0 compatible
 - works under Windows and Linux
 - no drivers needed 
-- works as a keyboard or joystick HID-composite device
+- works as a keyboard or as joystick HID-composite device
 - 1ms latency (minimum for HID)
 - 10kHz input port scan rate
 - integrated switch debouncing filter
@@ -56,7 +56,7 @@ GPIO21 | positive logic outputs | negative logic outputs
 ## Preparing your Raspberry Pico
 Hookup one or more buttons to your pico. Connect the pico to the PC while pressing and holding the BOOTSEL button. A mass storage device will pop up. Drag the uf2 firmware file into the drive and ready you are! The uf2 firmware file can be found under the release download on this Github page.
 
-## A 10$ Response Box
+## A 10$ Button Box
 A two button response box | bottom side
 ------------------------- | -----------
 ![](ezResponseBox.png) | ![](ezResponseBox_bottomside.png)
