@@ -1,19 +1,19 @@
 # The ezResponseBox
-*An open source response box for 1-8 buttons based on the Raspberry Pi Pico*
+*An open source Button Response Box for 1-8 buttons based on the Raspberry Pi Pico*
 
-Button reponse boxes are commonly used in Psychology experiments. Usually, response boxes are interfaced as serial device or as Human Interface Device (HID) like a keyboard or joystick.
+Button response boxes are widely utilized in psychological experiments, typically interfaced as serial devices or as Human Interface Devices (HIDs), such as keyboards or joysticks.
 
-The Raspberry Pi Pico is a low cost micro-controller platform. Together with the desirable number of input buttons (1-8) and a plastic box enclosure, a less than 50$ response box can be realized with similar specifications as to most of the commercial counterparts. The *ezResponseBox* can be used for example with [OpenSesame](https://osdoc.cogsci.nl/), PsychoPy or E-Prime.
+The Raspberry Pi Pico serves as a low-cost microcontroller platform. By incorporating an appropriate number of input buttons (1-8) and a plastic enclosure, a response box can be constructed for under $50, offering specifications comparable to many commercial alternatives. The *ezResponseBox* is compatible with software such as [OpenSesame](https://osdoc.cogsci.nl/), PsychoPy, and E-Prime.
 
-The Easy Response Box or *ezResponseBox* can operate both, as a keyboard or a joystick type of response box with a typical latency of 1ms (=1000Hz update rate). The latency is 10 to 20 times lower than for a standard PC-keyboard.
+The *ezResponseBox* operates as either a keyboard or joystick-type response box, achieving a typical latency of 1 ms (equivalent to a 1000 Hz update rate). This latency is 10 to 20 times lower than that of standard PC keyboards.
 
-In keyboard mode I, the *ezResponseBox* sends a keystroke of key numbers 1 to 8, depending on the pressed button(s). Simultaneous key presses are sent with the same USB packet (this will happen very seldomly because of the high input scan rate).
+In Keyboard Mode I, the *ezResponseBox* transmits keystrokes corresponding to key numbers 1 to 8 based on the pressed button(s). Simultaneous key presses are communicated within the same USB packet, although this occurrence is rare due to the high input scan rate.
 
-In keyboard mode II, the *ezResponseBox* transmits two hexadecimal digits, ranging from `00` tot `FF`. Simultaneous key presses should be decoded in the application program.
+In Keyboard Mode II, the *ezResponseBox* transmits two hexadecimal digits ranging from `00` to `FF`. Applications are responsible for decoding simultaneous key presses.
 
-The advantage of a joystick HID device is, that every state change of the input is sent to the host as eight bit joystick button state. The decoding of the buttons should be done in the application program.
+The advantage of using a joystick HID device lies in its ability to send every state change of the inputs to the host as an eight-bit joystick button state. Decoding of the buttons must be performed within the application program.
 
-The *ezResponseBox* scans eight digital inputs for reading the momentary button knobs status. Both, Normally Open (NO) and Normally Closed (NC) contacts can be used. The connected button contact type is scanned at power up. NC contacts are faster for detecting the onset of a response. The eight input channels are scanned at a rate of 10kHz and the readings are debounced with a FIR digital filter algorithm with a minimum delay of two sample periods. The debounced information is then transmitted on the next available USB packet. Only input state changes are sent to the computer.
+The *ezResponseBox* scans eight digital inputs to read the current status of the button knobs. Both Normally Open (NO) and Normally Closed (NC) contacts can be utilized. The type of connected button contacts is determined at power-up. NC contacts facilitate faster detection of response onset. The eight input channels are scanned at a rate of 10 kHz, with readings subjected to debouncing via a FIR digital filter algorithm, incorporating a minimum delay of 200µs which lies within the USB package interval. The debounced information is transmitted in the next available USB packet, with only input state changes sent to the computer.
 
 ## Specifications
 - USB 2.0 compatible
@@ -33,16 +33,16 @@ hex code | 0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80
 joystick button | 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 
 
 ## The Input GPIOs
-The input pins are: GP0-GP7. The pull-up function is active on all the inputs to interface directly to pushbutton switches.
+The input pins are: GP0-GP7. The pull-up function is active on all the inputs to allow direct interfacing to pushbutton switches.
 
-**Using NO/NC button contacts**
-In the default situation, the *ezResponseBox* works with NO-contacts. If at least one connected switch is of an type NC, the *ezResponseBox* will detect this at start up (immediately after connecting to the USB port) and all of the logic input readings will be inverted. Please, don't mix up NO and NC contacts for the sake of simplicity. When using NC-type contacts, please tie the unused input pins to the ground (GND-pin).
+## Using NO/NC Button Contacts
+By default, the *ezResponseBox* operates with Normally Open (NO) contacts. If at least one connected switch is of the Normally Closed (NC) type, the *ezResponseBox* will detect this upon startup (immediately after connecting to the USB port), resulting in the inversion of all logic input readings. To maintain simplicity, avoid mixing NO and NC contacts. When using NC-type contacts, ensure that unused input pins are tied to the ground (GND pin).
 
 ## The Output GPIOs
-The eight debounced inputs are redirected to eight digital outputs GP8-GP15. The logic state can be inverted (see *Configuration Settings* below). The logic level is 3.3V. Level converters and/or line drivers are needed to interface to external 5V TTL-logic or LED-indicators.
+The eight debounced inputs are mapped to eight digital outputs, specifically GP8 to GP15. The logic state of these outputs can be inverted (refer to *Configuration Settings* below). The logic level is 3.3V; therefore, level converters and/or line drivers are required to interface with external 5V TTL logic or LED indicators.
 
 ## Configuration Settings
-When plugged into the  USB port of the computer, multiple devices will register to the operating system. The only active device is the one that is selected through jumper wires or DIP-switches. The configuration is set at start up. See the function table below for the configuration settings.
+Upon connecting the *ezResponseBox* to a computer’s USB port, multiple devices may register with the operating system. The only active device is the one selected via jumper wires or DIP switches. Configuration is established at power-up. Refer to the function table below for detailed configuration settings.
 
 ![ezResponseBox_bb.png](ezResponseBox_bb.png "wiring diagram")
 
